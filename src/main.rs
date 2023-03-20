@@ -7,7 +7,7 @@ use serenity::prelude::*;
 use serenity::model::gateway::Ready;
 use serenity::model::channel::Message;
 
-const TOKEN : &str = "";
+const TOKEN : &str = "Вставьте сюда ваш токен";
 
 struct Handler;
 
