@@ -14,18 +14,25 @@ struct Handler;
 impl EventHandler for Handler {
 
     fn message(&self, ctx: Context, msg: Message) {
-        if msg.content == "?ping" {
+        //по умолчанию
+        let content: String = msg.content;
+        let mut wiki_link: &str = "";
+        let mut wiki_hosting: &str = "fandom";
+        let mut lang: &str = "en";
+        let mut is_file: bool = false;
+
+        if content == "?ping" {
             if let Err(why) = msg.channel_id.say(&ctx.http, "Pong?") {
                 println!("Error giving message: {:?}", why)
             }
         }
 
-        if msg.content.starts_with("!рандом ") {
-            //let num: str = msg.content.slice_unchecked(0, 21);
+        if content.starts_with("!рандом ") {
+            //let num: str =content.slice_unchecked(0, 21);
             //let mut a : &str = "";
             unsafe {
                 //let contentLen : &int = "msg.content".len();
-                let num_str : &str  = msg.content.get_unchecked(14..msg.content.len());
+                let num_str : &str  =content.get_unchecked(14..content.len());
                 println!("Число-строка: {}", num_str);
 
                 let num: i32 = num_str.parse::<i32>().unwrap();
@@ -49,9 +56,9 @@ impl EventHandler for Handler {
             }
         }
 
-        if msg.content.starts_with("!кнб "){
+        if content.starts_with("!кнб "){
             unsafe {
-                let user_item: &str = msg.content.get_unchecked(8..msg.content.len());
+                let user_item: &str = content.get_unchecked(8..content.len());
                 println!("Предмет пользователя: {}", user_item);
 
                 let bot_items_arr: [&str; 3] = ["камень", "ножницы", "бумага"];
@@ -103,6 +110,126 @@ impl EventHandler for Handler {
                         println!("Error giving message: {:?}", why)
                     }
                 }
+            }
+        }
+        if (content.contains("[[") &&  content.contains("]]")) || (content.contains("{{") &&  content.contains("}}")){
+            println!("Обнаружена вики-ссылка!");
+            if content.contains("[[") &&  content.contains("]]") {
+                // Безопасный способ получить элемент строки по индексу, спасибо Бингу!
+                wiki_link = match content.find("[") {
+                    Some(start) => match content.find("]") {
+                        Some(end) => &content[start + 2..end],
+                        None => "", // Подстрока "]" не найдена
+                    },
+                    None => "", // Подстрока "[" не найдена
+                };
+                println!("Вики-ссылка: {}", wiki_link);
+            }
+            if content.contains("{{") &&  content.contains("}}") {
+                // Безопасный способ получить элемент строки по индексу, спасибо Бингу!
+                wiki_link = match content.find("{") {
+                    Some(start) => match content.find("}") {
+                        Some(end) => &content[start + 2..end],
+                        None => "", // Подстрока "}" не найдена
+                    },
+                    None => "", // Подстрока "{" не найдена
+                };
+                println!("Вики-шаблон-ссылка: {}", wiki_link);
+            }
+
+            let wiki_link2: &String = &wiki_link.replace(" ", "_");
+            wiki_link = wiki_link2;
+
+            if wiki_link.starts_with("w:c:") {
+                wiki_hosting = "fandom";
+
+                unsafe {
+                    wiki_link = wiki_link.get_unchecked(4..content.len());
+                    println!("Вики-ссылка (2): {}", wiki_link);
+                    /*let wiki_link2 = "?".to_owned() + &wiki_link.to_string();
+                    wiki_link = &wiki_link2.to_string();*/
+
+                    let s = "ru.test:Test";
+                    let (new_s, old_s) = s.split_once(":").unwrap();
+                    println!("new_s: {}", new_s); // ru.test
+                    println!("old_s: {}", old_s); // Test
+
+                    wiki_link = old_s;
+                    println!("wiki_link: {}", wiki_link);
+
+                    let (lang, url) = new_s.split_once(".").unwrap();
+
+                    println!("lang: {}", lang);
+                    println!("url: {}", url);
+
+                    //println!("wiki_link2: {}", wiki_link2);
+
+                    /*let l_url: &str = match wiki_link.find("?") {
+                        Some(start) => match wiki_link.find(":") {
+                            Some(end) => &wiki_link[start + 2..end],
+                            None => "", // Подстрока ":" не найдена
+                        },
+                        None => "", // Подстрока "" не найдена
+                    };
+                    //let l_url = wiki_link[..]
+
+                    println!("l_url: {}", l_url);*/
+                }
+            }
+
+            if wiki_link.starts_with("ruwikipedia:") {
+                wiki_hosting = "wikipedia";
+                lang = "ru";
+                unsafe {
+                    wiki_link = wiki_link.get_unchecked(12..wiki_link.len());
+                    println!("wiki_link: {}", wiki_link);
+                }
+            }
+
+            if wiki_link.starts_with("commons:") {
+                wiki_hosting = "commons";
+                lang = "en";
+                unsafe {
+                    wiki_link = wiki_link.get_unchecked(8..wiki_link.len());
+                    println!("wiki_link: {}", wiki_link);
+                }
+            }
+
+            if wiki_link.starts_with("mw:") {
+                wiki_hosting = "mediawiki";
+                lang = "en";
+                unsafe {
+                    wiki_link = wiki_link.get_unchecked(3..wiki_link.len());
+                    println!("wiki_link: {}", wiki_link);
+                }
+            }
+
+            if wiki_link.starts_with("mh:") {
+                wiki_hosting = "miraheze";
+                lang = "en";
+                unsafe {
+                    wiki_link = wiki_link.get_unchecked(3..wiki_link.len());
+                    println!("wiki_link: {}", wiki_link);
+
+                    let (url, wiki_link) = wiki_link.split_once(":").unwrap();
+                    println!("url: {}", url);
+                    println!("wiki_link: {}", wiki_link); 
+                }
+            }
+
+            if wiki_link.starts_with("File:") || wiki_link.starts_with("Файл:"){
+                let (file, wiki_link) = wiki_link.split_once(":").unwrap();
+                println!("file: {}", file);
+                println!("wiki_link: {}", wiki_link);
+                //wikiLink = $"Special:Redirect/file?wpvalue={wikiLink}";
+                //wiki_link: String = "Special:Redirect/file?wpvalue=".to_owned() + wiki_link;
+
+                let mut file_string = "Special:Redirect/file?wpvalue=".to_owned();
+                file_string.push_str(wiki_link);
+                println!("file_string: {}", file_string);
+                //wiki_link = file_string
+
+                is_file = true;
             }
         }
     }
